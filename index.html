@@ -2,20 +2,23 @@
 <html>
     <head>
         <title>WorldHacks &middot; 2026 &middot; SF</title>
+        <link rel="icon" type="image/jpeg" href="logo.jpg" />
+        <link rel="apple-touch-icon" href="logo.jpg" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         <style>
             html {
                 margin: 0px;
                 padding: 0px;
                 box-sizing: border-box;
-                width: 100vw;
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                height: 100vh;
+                overflow-x: hidden;
             }
             body {
                 text-align: center;
                 padding: 0px;
                 margin: 0px;
-                height: 100%;
+                overflow-x: hidden;
             }
             h1 {
                 font-size: 24px;
@@ -24,14 +27,35 @@
                 font-size: 14px;
             }
             main {
-                height: 100%;
+                min-height: 100vh;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
             }
-            #interest-btn {
+            #email-form {
                 margin-top: 28px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+            #email-input {
+                background: none;
+                border: none;
+                border-bottom: 1px solid #bbb;
+                outline: none;
+                font-family: inherit;
+                font-size: 13px;
+                color: #222;
+                text-align: center;
+                padding: 4px 0;
+                width: 220px;
+                transition: border-color 0.15s;
+            }
+            #email-input::placeholder { color: #aaa; }
+            #email-input:focus { border-color: #555; }
+            #interest-btn {
                 background: none;
                 border: none;
                 cursor: pointer;
@@ -46,25 +70,267 @@
             #interest-btn:hover { color: #000; }
             #interest-btn:disabled { cursor: default; color: #888; text-decoration: none; }
             #interest-count {
-                margin-top: 8px;
+                margin-top: 4px;
                 font-size: 12px;
                 color: #999;
                 min-height: 16px;
             }
+            #sphere-container {
+                position: fixed;
+                top: 50%;
+                left: -350px;
+                transform: translateY(-50%);
+                width: 900px;
+                height: 900px;
+                z-index: 0;
+                pointer-events: none;
+            }
+            #sphere-canvas {
+                width: 100%;
+                height: 100%;
+            }
+            main {
+                position: relative;
+                z-index: 1;
+            }
+            #map-modal {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(20, 30, 50, 0.35);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+                z-index: 100;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            #map-modal.open { display: flex; }
+            #map-box {
+                background: #fff;
+                width: 100%;
+                max-width: 720px;
+                height: 540px;
+                max-height: 90vh;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+                overflow: hidden;
+            }
+            #map-el {
+                flex: 1;
+                width: 100%;
+                background: #f5f5f5;
+            }
+            #map-footer {
+                padding: 14px 18px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-top: 1px solid #eee;
+                font-size: 13px;
+                gap: 12px;
+            }
+            #map-hint {
+                color: #666;
+                flex: 1;
+                text-align: left;
+            }
+            #map-actions { display: flex; gap: 18px; }
+            #map-footer button {
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-family: inherit;
+                font-size: 13px;
+                text-decoration: underline;
+                text-underline-offset: 3px;
+                color: #555;
+                padding: 0;
+                transition: color 0.15s;
+            }
+            #map-footer button:hover { color: #000; }
+            #map-footer button:disabled { color: #bbb; cursor: default; text-decoration: none; }
+            .user-pin-icon { background: none; border: none; }
+            .user-pin-icon div {
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: #ff4466;
+                border: 2px solid #fff;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            }
+            .leaflet-container { font-family: inherit; background: #fafafa; }
+
+            #scroll-hint {
+                position: absolute;
+                bottom: 28px;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 11px;
+                color: #999;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                animation: bob 2.4s ease-in-out infinite;
+                pointer-events: none;
+            }
+            #scroll-hint::after {
+                content: '';
+                display: block;
+                width: 1px;
+                height: 22px;
+                background: #bbb;
+                margin: 8px auto 0;
+            }
+            @keyframes bob {
+                0%, 100% { transform: translate(-50%, 0); opacity: 0.75; }
+                50% { transform: translate(-50%, 6px); opacity: 1; }
+            }
+
+            #world-map-section {
+                position: relative;
+                z-index: 2;
+                height: 100vh;
+                box-sizing: border-box;
+                background: #fff;
+                padding: 80px;
+                border-top: 1px solid #eee;
+            }
+            #world-map-title {
+                font-size: 14px;
+                color: #555;
+                margin: 0 0 6px;
+                font-weight: 600;
+                letter-spacing: 0.02em;
+            }
+            #world-map-sub {
+                font-size: 12px;
+                color: #999;
+                margin: 0 0 24px;
+            }
+            #world-map {
+                width: 100%;
+                max-width: 1100px;
+                height: 560px;
+                margin: 0 auto;
+                background: #fafafa;
+            }
         </style>
     </head>
     <body>
+        <div id="sphere-container">
+            <canvas id="sphere-canvas" width="900" height="900"></canvas>
+        </div>
         <main>
             <h1>WORLDHACKS 2026</h1>
-            <h2>August 22-23</h2>
+            <h2>SF // August 22-23</h2>
             <h2>North America &middot; South America &middot; Europe &middot; Asia &middot; Oceania</h2>
-            <button id="interest-btn" onclick="expressInterest()">express interest</button>
-            <p id="interest-count"></p>
+            <form id="email-form" onsubmit="expressInterest(event)">
+                <input id="email-input" type="email" placeholder="your@email.com" required autocomplete="email" />
+                <button id="interest-btn" type="submit">express interest</button>
+                <p id="interest-count"></p>
+            </form>
+            <div id="scroll-hint">scroll</div>
         </main>
 
+        <section id="world-map-section">
+            <h3 id="world-map-title">WHERE WE'RE JOINING FROM</h3>
+            <p id="world-map-sub">worldhacks is a worldwide event. acceptance is capped at 5000</p>
+            <div id="world-map"></div>
+        </section>
+
+        <div id="map-modal">
+            <div id="map-box">
+                <div id="map-el"></div>
+                <div id="map-footer">
+                    <span id="map-hint">finding your location…</span>
+                    <div id="map-actions">
+                        <button id="map-skip-btn" type="button">skip</button>
+                        <button id="map-confirm-btn" type="button" disabled>confirm</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            (function() {
+                const canvas = document.getElementById('sphere-canvas');
+                const ctx = canvas.getContext('2d');
+                const W = canvas.width, H = canvas.height;
+                const cx = W / 2, cy = H / 2, R = 420;
+                const TILT = Math.PI / 8; // ~36 degree axis tilt
+                let angle = 0;
+
+                const LATITUDE_LINES = 10;
+                const LONGITUDE_LINES = 16;
+                const STEPS = 80;
+
+                // Rotate point around Y axis then tilt around Z axis
+                function transform(px, py, pz) {
+                    // Y rotation (spin)
+                    const rx = px * Math.cos(angle) - pz * Math.sin(angle);
+                    const ry = py;
+                    const rz = px * Math.sin(angle) + pz * Math.cos(angle);
+                    // Z tilt
+                    const tx = rx * Math.cos(TILT) - ry * Math.sin(TILT);
+                    const ty = rx * Math.sin(TILT) + ry * Math.cos(TILT);
+                    return { x: cx + tx, y: cy - ty };
+                }
+
+                function drawLine(points) {
+                    ctx.beginPath();
+                    points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                    ctx.stroke();
+                }
+
+                function draw() {
+                    ctx.clearRect(0, 0, W, H);
+                    ctx.strokeStyle = 'rgba(100, 180, 255, 0.5)';
+                    ctx.lineWidth = 1.2;
+
+                    // Latitude lines
+                    for (let i = 1; i < LATITUDE_LINES; i++) {
+                        const phi = (i / LATITUDE_LINES) * Math.PI;
+                        const y = R * Math.cos(phi);
+                        const r = R * Math.sin(phi);
+                        const pts = [];
+                        for (let j = 0; j <= STEPS; j++) {
+                            const theta = (j / STEPS) * Math.PI * 2;
+                            pts.push(transform(r * Math.cos(theta), y, r * Math.sin(theta)));
+                        }
+                        drawLine(pts);
+                    }
+
+                    // Longitude lines
+                    for (let i = 0; i < LONGITUDE_LINES; i++) {
+                        const lon = (i / LONGITUDE_LINES) * Math.PI * 2;
+                        const pts = [];
+                        for (let j = 0; j <= STEPS; j++) {
+                            const phi = (j / STEPS) * Math.PI;
+                            const x = R * Math.sin(phi) * Math.cos(lon);
+                            const y = R * Math.cos(phi);
+                            const z = R * Math.sin(phi) * Math.sin(lon);
+                            pts.push(transform(x, y, z));
+                        }
+                        drawLine(pts);
+                    }
+
+                    angle += 0.0012;
+                    requestAnimationFrame(draw);
+                }
+
+                draw();
+            })();
+        </script>
         <script type="module">
             const SUPABASE_URL = 'https://amdxgbjdkhbuhxoneazk.supabase.co';
             const SUPABASE_ANON_KEY = 'sb_publishable_hA9d8FroCca9mRYvrqg-EA_2Fe8cW2J';
+            const MAP_TILES = 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
+
+            let leafletMap = null;
+            let worldMap = null;
+            let userMarker = null;
+            let pendingEmail = null;
 
             async function fetchCount() {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/interests?select=id`, {
@@ -74,38 +340,209 @@
                 return count ? parseInt(count) : 0;
             }
 
-            async function addInterest() {
+            async function fetchPins() {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/interests?select=lat,lng&lat=not.is.null&lng=not.is.null`, {
+                    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if (!res.ok) return [];
+                return res.json();
+            }
+
+            async function addInterest(email, lat, lng) {
+                const body = { email };
+                if (lat != null && lng != null) { body.lat = lat; body.lng = lng; }
                 await fetch(`${SUPABASE_URL}/rest/v1/interests`, {
                     method: 'POST',
                     headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: JSON.stringify(body)
                 });
             }
 
-            
-            window.expressInterest = async function() {
+            function setSubmitted(n) {
                 const btn = document.getElementById('interest-btn');
                 const countEl = document.getElementById('interest-count');
+                const input = document.getElementById('email-input');
+                btn.textContent = 'interest expressed';
                 btn.disabled = true;
-                await addInterest();
-                const n = await fetchCount();
-                btn.textContent = 'interest expressed ✓';
-                countEl.textContent = `${n} ${n === 1 ? 'person' : 'people'} interested`;
-                localStorage.setItem('wh_interested', '1');
+                input.disabled = true;
+                input.hidden = true;
+                if (n > 0) countEl.textContent = `${n} ${n === 1 ? 'person' : 'people'} interested`;
+            }
+
+            function getUserLocation() {
+                return new Promise((resolve) => {
+                    if (!navigator.geolocation) return resolve(null);
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                        () => resolve(null),
+                        { timeout: 8000, maximumAge: 60000 }
+                    );
+                });
+            }
+
+            function placeUserMarker(lat, lng) {
+                if (userMarker) {
+                    userMarker.setLatLng([lat, lng]);
+                } else {
+                    const icon = L.divIcon({
+                        className: 'user-pin-icon',
+                        html: '<div></div>',
+                        iconSize: [14, 14],
+                        iconAnchor: [7, 7]
+                    });
+                    userMarker = L.marker([lat, lng], { icon, draggable: true, zIndexOffset: 1000 }).addTo(leafletMap);
+                }
+                document.getElementById('map-confirm-btn').disabled = false;
+                document.getElementById('map-hint').textContent = 'drag the pin to adjust — or click elsewhere on the map';
+            }
+
+            async function initMap() {
+                if (leafletMap) return;
+                leafletMap = L.map('map-el', {
+                    zoomControl: false,
+                    attributionControl: false,
+                    worldCopyJump: true
+                }).setView([20, 0], 2);
+
+                L.tileLayer(MAP_TILES, {
+                    subdomains: 'abcd',
+                    maxZoom: 18,
+                    minZoom: 2
+                }).addTo(leafletMap);
+
+                L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
+
+                leafletMap.on('click', (e) => {
+                    placeUserMarker(e.latlng.lat, e.latlng.lng);
+                });
+
+                const pins = await fetchPins();
+                pins.forEach(p => {
+                    if (typeof p.lat === 'number' && typeof p.lng === 'number') {
+                        L.circleMarker([p.lat, p.lng], {
+                            radius: 3.5,
+                            fillColor: '#4488ff',
+                            color: '#2266dd',
+                            weight: 0.5,
+                            fillOpacity: 0.7
+                        }).addTo(leafletMap);
+                    }
+                });
+            }
+
+            async function openMapModal() {
+                const modal = document.getElementById('map-modal');
+                const hint = document.getElementById('map-hint');
+                const confirmBtn = document.getElementById('map-confirm-btn');
+
+                hint.textContent = 'finding your location…';
+                confirmBtn.disabled = true;
+                modal.classList.add('open');
+
+                await initMap();
+                setTimeout(() => leafletMap.invalidateSize(), 50);
+
+                const coords = await getUserLocation();
+                if (coords) {
+                    placeUserMarker(coords.lat, coords.lng);
+                    leafletMap.setView([coords.lat, coords.lng], 5);
+                } else {
+                    hint.textContent = 'click on the map to drop a pin, or skip';
+                }
+            }
+
+            function closeMapModal() {
+                document.getElementById('map-modal').classList.remove('open');
+            }
+
+            async function finishSubmit(lat, lng) {
+                const confirmBtn = document.getElementById('map-confirm-btn');
+                const skipBtn = document.getElementById('map-skip-btn');
+                confirmBtn.disabled = true;
+                skipBtn.disabled = true;
+                try {
+                    await addInterest(pendingEmail, lat, lng);
+                    const n = await fetchCount();
+                    setSubmitted(n);
+                    localStorage.setItem('wh_interested', '1');
+                } finally {
+                    skipBtn.disabled = false;
+                    closeMapModal();
+                }
+            }
+
+            document.getElementById('map-confirm-btn').addEventListener('click', () => {
+                if (!userMarker) return;
+                const { lat, lng } = userMarker.getLatLng();
+                finishSubmit(lat, lng);
+            });
+
+            document.getElementById('map-skip-btn').addEventListener('click', () => {
+                finishSubmit(null, null);
+            });
+
+            window.expressInterest = async function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('interest-btn');
+                const email = document.getElementById('email-input').value.trim();
+                if (!email) return;
+                pendingEmail = email;
+                btn.disabled = true;
+                openMapModal();
             };
 
             (async () => {
-                const countEl = document.getElementById('interest-count');
-                const btn = document.getElementById('interest-btn');
                 try {
                     const n = await fetchCount();
-                    if (n > 0) countEl.textContent = `${n} ${n === 1 ? 'person' : 'people'} interested`;
                     if (localStorage.getItem('wh_interested')) {
-                        btn.textContent = 'interested';
-                        btn.disabled = true;
+                        setSubmitted(n);
+                    } else if (n > 0) {
+                        document.getElementById('interest-count').textContent = `${n} ${n === 1 ? 'person' : 'people'} interested`;
                     }
                 } catch (e) { /* silently fail if Supabase not configured */ }
             })();
+
+            async function initWorldMap() {
+                if (worldMap) return;
+                worldMap = L.map('world-map', {
+                    zoomControl: false,
+                    attributionControl: false,
+                    scrollWheelZoom: false,
+                    worldCopyJump: true
+                }).setView([20, 0], 2);
+
+                L.tileLayer(MAP_TILES, {
+                    subdomains: 'abcd',
+                    maxZoom: 18,
+                    minZoom: 2
+                }).addTo(worldMap);
+
+                L.control.zoom({ position: 'bottomright' }).addTo(worldMap);
+
+                try {
+                    const pins = await fetchPins();
+                    pins.forEach(p => {
+                        if (typeof p.lat === 'number' && typeof p.lng === 'number') {
+                            L.circleMarker([p.lat, p.lng], {
+                                radius: 4,
+                                fillColor: '#4488ff',
+                                color: '#2266dd',
+                                weight: 0.6,
+                                fillOpacity: 0.75
+                            }).addTo(worldMap);
+                        }
+                    });
+                } catch (e) { /* ignore */ }
+            }
+
+            const mapSection = document.getElementById('world-map-section');
+            const mapObserver = new IntersectionObserver((entries) => {
+                if (entries.some(e => e.isIntersecting)) {
+                    initWorldMap();
+                    mapObserver.disconnect();
+                }
+            }, { rootMargin: '200px' });
+            mapObserver.observe(mapSection);
         </script>
     </body>
 </html>
