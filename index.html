@@ -224,7 +224,7 @@
         <main>
             <h1>WORLDHACKS 2026</h1>
             <h2>SF // August 22-23</h2>
-            <h2>North America &middot; South America &middot; Europe &middot; Asia &middot; Oceania</h2>
+            <h2>North America &middot; South America &middot; Europe &middot; Asia &middot; Oceania &middot; Africa</h2>
             <form id="email-form" onsubmit="expressInterest(event)">
                 <input id="email-input" type="email" placeholder="your@email.com" required autocomplete="email" />
                 <button id="interest-btn" type="submit">express interest</button>
@@ -243,7 +243,7 @@
             <div id="map-box">
                 <div id="map-el"></div>
                 <div id="map-footer">
-                    <span id="map-hint">finding your location…</span>
+                    <span id="map-hint">finding your location...</span>
                     <div id="map-actions">
                         <button id="map-skip-btn" type="button">skip</button>
                         <button id="map-confirm-btn" type="button" disabled>confirm</button>
@@ -393,7 +393,7 @@
                     userMarker = L.marker([lat, lng], { icon, draggable: true, zIndexOffset: 1000 }).addTo(leafletMap);
                 }
                 document.getElementById('map-confirm-btn').disabled = false;
-                document.getElementById('map-hint').textContent = 'drag the pin to adjust — or click elsewhere on the map';
+                document.getElementById('map-hint').textContent = 'drag the pin to adjust - or click elsewhere on the map';
             }
 
             async function initMap() {
@@ -435,7 +435,7 @@
                 const hint = document.getElementById('map-hint');
                 const confirmBtn = document.getElementById('map-confirm-btn');
 
-                hint.textContent = 'finding your location…';
+                hint.textContent = 'finding your location...';
                 confirmBtn.disabled = true;
                 modal.classList.add('open');
 
